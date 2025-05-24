@@ -482,12 +482,11 @@ class GitAutoSyncApp:
 
 
 class CommitDialog:
-    """Dialog for entering commit information"""
+    """Dialog for entering commit information - SIMPLIFIED VERSION"""
     
     def __init__(self, parent, app, file_path):
         self.app = app
         self.file_path = file_path
-        self.result = None
         
         # Create dialog - handle case where parent might be None
         if parent is None:
@@ -498,7 +497,7 @@ class CommitDialog:
             self.dialog = tk.Toplevel(parent)
         
         self.dialog.title("File Changed - Commit Changes")
-        self.dialog.geometry("500x200")  # Smaller since we removed remote/branch fields
+        self.dialog.geometry("500x220")  # Larger to accommodate multi-line text
         
         # Make dialog always on top and properly visible
         self.dialog.attributes('-topmost', True)
@@ -516,181 +515,143 @@ class CommitDialog:
             self.dialog.grab_set()
         except tk.TclError as e:
             print(f"Warning: Could not set dialog grab: {e}")
-            # Continue without grab - dialog will still be visible and functional
         
-        self.setup_dialog()
+        self.setup_simple_dialog()
         
         # Show the dialog if it was hidden
         if parent is None:
             self.dialog.deiconify()
-            # Ensure it comes to front when created independently
             self.dialog.lift()
             self.dialog.focus_force()
             self.dialog.attributes('-topmost', True)  
-            # Remove topmost after a brief moment so it doesn't stay on top of everything
             self.dialog.after(500, lambda: self.dialog.attributes('-topmost', False))
-            # Set focus after dialog is fully shown
             self.dialog.after(100, lambda: self.set_initial_focus())
         else:
-            # For dialogs with parent, set focus immediately
             self.dialog.after(50, lambda: self.set_initial_focus())
             
     def center_on_screen(self):
         """Center the dialog on the screen"""
         self.dialog.update_idletasks()
         width = 500  
-        height = 200  # Updated for smaller dialog
+        height = 220
         x = (self.dialog.winfo_screenwidth() // 2) - (width // 2)
         y = (self.dialog.winfo_screenheight() // 2) - (height // 2)
         self.dialog.geometry(f"{width}x{height}+{x}+{y}")
-        
-    def setup_dialog(self):
-        """Setup the commit dialog"""
-        main_frame = ttk.Frame(self.dialog, padding="20")
+
+    def setup_simple_dialog(self):
+        """Setup ONLY commit message - NO remote/branch fields"""
+        # Clear any existing widgets first
+        for widget in self.dialog.winfo_children():
+            widget.destroy()
+            
+        main_frame = ttk.Frame(self.dialog, padding="15")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # File info
         ttk.Label(main_frame, text=f"File changed: {os.path.basename(self.file_path)}", 
                  font=('Arial', 10, 'bold')).pack(pady=(0, 10))
         
-        # Commit message
-        ttk.Label(main_frame, text="📝 Commit Message:").pack(anchor=tk.W)
-        self.commit_var = tk.StringVar()
-        # Set the default value after creating the StringVar
+        # ONLY commit message field
+        commit_label_frame = ttk.Frame(main_frame)
+        commit_label_frame.pack(fill=tk.X, pady=(0, 3))
+        
+        ttk.Label(commit_label_frame, text="📝 Commit Message:").pack(side=tk.LEFT)
+        ttk.Label(commit_label_frame, text="(Ctrl+Enter to submit)", 
+                 font=('Arial', 8), foreground='gray').pack(side=tk.RIGHT)
+        
+        # Create multi-line text widget with scrollbar
+        text_frame = ttk.Frame(main_frame)
+        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        
+        self.commit_text = tk.Text(text_frame, height=5, width=60, 
+                                  font=('Arial', 9), wrap=tk.WORD)
+        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.commit_text.yview)
+        self.commit_text.configure(yscrollcommand=scrollbar.set)
+        
+        self.commit_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Insert default text
         default_commit = f"Update {os.path.basename(self.file_path)} - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        self.commit_var.set(default_commit)
+        self.commit_text.insert('1.0', default_commit)
         
-        commit_entry = ttk.Entry(main_frame, textvariable=self.commit_var, width=60)
-        commit_entry.pack(fill=tk.X, pady=(5, 10))
-        
-        # Store reference for later focus
-        self.commit_entry = commit_entry
-        
-        # Remote name
-        ttk.Label(main_frame, text="🔗 Remote Name:").pack(anchor=tk.W)
-        self.remote_var = tk.StringVar()
-        # Set default value ensuring we have app config
-        default_remote = self.app.config.get('default_remote', 'origin') if self.app.config else 'origin'
-        self.remote_var.set(default_remote)
-        ttk.Entry(main_frame, textvariable=self.remote_var, width=30).pack(anchor=tk.W, pady=(5, 10))
-        
-        # Branch name
-        ttk.Label(main_frame, text="🌿 Branch Name:").pack(anchor=tk.W)
-        self.branch_var = tk.StringVar()
-        # Set default value ensuring we have app config
-        default_branch = self.app.config.get('default_branch', 'main') if self.app.config else 'main'
-        self.branch_var.set(default_branch)
-        ttk.Entry(main_frame, textvariable=self.branch_var, width=30).pack(anchor=tk.W, pady=(5, 15))
-        
-        # Buttons
+        # Buttons - NO OTHER FIELDS
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X)
         
-        ttk.Button(button_frame, text="✅ Update", command=self.update_repo).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(button_frame, text="❌ Cancel", command=self.cancel).pack(side=tk.LEFT)
+        ttk.Button(button_frame, text="✅ Push Changes", 
+                  command=self.push_changes).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_frame, text="❌ Cancel", 
+                  command=self.cancel).pack(side=tk.LEFT)
         
-        # Bind Enter key
-        self.dialog.bind('<Return>', lambda e: self.update_repo())
+        # Bind keys (Ctrl+Enter to submit, Escape to cancel)
+        self.dialog.bind('<Control-Return>', lambda e: self.push_changes())
         self.dialog.bind('<Escape>', lambda e: self.cancel())
-        
-        # Handle window close properly
         self.dialog.protocol("WM_DELETE_WINDOW", self.cancel)
         
-        # Force update to make sure all widgets are properly initialized
-        self.dialog.update_idletasks()
-        
-        # Debug output to verify values are set
-        print(f"Dialog initialized with: Remote='{self.remote_var.get()}', Branch='{self.branch_var.get()}', Commit='{self.commit_var.get()[:50]}...'")
-        
-        
-    def update_repo(self):
-        """Update the repository with changes"""
-        # Force update to make sure we get current values
-        self.dialog.update_idletasks()
-        
-        commit_msg = self.commit_var.get().strip()
-        remote = self.remote_var.get().strip()
-        branch = self.branch_var.get().strip()
-        
-        # Debug output
-        print(f"Update repo called with: Remote='{remote}', Branch='{branch}', Commit='{commit_msg[:50]}...'")
+        print(f"Multi-line dialog created with commit: '{default_commit[:30]}...'")
+    
+    def set_initial_focus(self):
+        """Set focus on commit text widget"""
+        try:
+            self.commit_text.focus_set()
+            self.commit_text.select_range('1.0', tk.END)
+            print(f"Focus set on text widget")
+        except Exception as e:
+            print(f"Error setting focus: {e}")
+    
+    def push_changes(self):
+        """Push changes using commit message from text widget"""
+        commit_msg = self.commit_text.get('1.0', tk.END).strip()
         
         if not commit_msg:
             messagebox.showerror("Error", "Please enter a commit message")
             return
-            
-        if not remote or not branch:
-            messagebox.showerror("Error", "Please specify remote and branch")
-            return
         
-        # Disable the dialog while processing
-        for widget in self.dialog.winfo_children():
-            if hasattr(widget, 'configure'):
-                try:
-                    widget.configure(state='disabled')
-                except:
-                    pass
+        # Get remote/branch from main app config (not from dialog)
+        remote = self.app.config.get('default_remote', 'origin')
+        branch = self.app.config.get('default_branch', 'main')
         
-        # Run git commands in background thread
-        def run_update():
+        print(f"Pushing commit: '{commit_msg[:50]}...' to {remote}/{branch}")
+        
+        # Disable dialog while processing
+        self.commit_text.configure(state='disabled')
+        
+        # Run git commands in background
+        def run_git():
             success = self.app.run_git_commands(
                 self.app.config['repo_path'],
                 commit_msg,
                 remote,
                 branch
             )
-            
-            # Show result on main thread using the main app's root window
             self.app.root.after(0, lambda: self.show_result(success, commit_msg))
         
-        threading.Thread(target=run_update, daemon=True).start()
-        
+        threading.Thread(target=run_git, daemon=True).start()
+    
     def show_result(self, success, commit_msg):
-        """Show the result of the git operations"""
-        # Hide the commit dialog so messagebox appears clearly
+        """Show result message"""
         self.dialog.withdraw()
         
-        # Use the app's main root for messagebox parent, but make it visible temporarily if needed
-        root_was_visible = self.app.root.winfo_viewable()
-        if not root_was_visible:
-            # Temporarily show the main window to use as parent
-            self.app.root.deiconify()
-            self.app.root.attributes('-topmost', True)
+        # Show only the first line of commit message in success dialog
+        first_line = commit_msg.split('\n')[0]
+        display_msg = first_line if len(first_line) <= 50 else first_line[:50] + "..."
         
         if success:
-            messagebox.showinfo("Git Push Success", f"Changes pushed successfully!\n\nCommit: {commit_msg}")
+            messagebox.showinfo("Success", f"✅ Changes pushed successfully!\n\nCommit: {display_msg}")
         else:
-            messagebox.showerror("Git Push Error", "Failed to push changes. Check console for details.")
+            messagebox.showerror("Error", "❌ Failed to push changes. Check console.")
         
-        # Restore main window state
-        if not root_was_visible:
-            self.app.root.withdraw()
-            self.app.root.attributes('-topmost', False)
-        
-        # Close the dialog after showing result
         self.close_dialog()
-        
+    
     def cancel(self):
-        """Cancel the commit dialog"""
+        """Cancel dialog"""
         self.close_dialog()
-        
-    def set_initial_focus(self):
-        """Set initial focus and selection for the commit entry"""
-        try:
-            self.commit_entry.focus()
-            self.commit_entry.select_range(0, tk.END)
-        except Exception as e:
-            print(f"Error setting focus: {e}")
-            
+    
     def close_dialog(self):
-        """Properly close the dialog and clean up"""
-        # Clear the active dialog reference
+        """Close dialog and cleanup"""
         if self.app.active_dialog == self.dialog:
             self.app.active_dialog = None
-        elif self.app.active_dialog is None:
-            # Handle case where reference was already cleared
-            pass
-            
         self.dialog.destroy()
 
 
