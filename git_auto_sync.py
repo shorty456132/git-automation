@@ -171,17 +171,24 @@ class GitAutoSyncApp:
         ttk.Entry(main_frame, textvariable=self.branch_var, width=20).grid(row=5, column=1, 
                                                                           sticky=tk.W, padx=(10, 5), pady=5)
         
-        # Buttons
+        # Buttons with better styling
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=6, column=0, columnspan=3, pady=20)
         
-        ttk.Button(button_frame, text="Start Monitoring", 
-                  command=self.start_monitoring).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Minimize to Tray", 
-                  command=self.minimize_to_tray).pack(side=tk.LEFT, padx=5)
+        self.start_button = ttk.Button(button_frame, text="▶️ Start Monitoring", 
+                                      command=self.start_monitoring)
+        self.start_button.pack(side=tk.LEFT, padx=5)
+        
+        self.stop_button = ttk.Button(button_frame, text="⏹️ Stop Monitoring", 
+                                     command=self.stop_monitoring, state='disabled')
+        self.stop_button.pack(side=tk.LEFT, padx=5)
+        
+        self.tray_button = ttk.Button(button_frame, text="📌 Minimize to Tray", 
+                                     command=self.minimize_to_tray, state='disabled')
+        self.tray_button.pack(side=tk.LEFT, padx=5)
         
         # Status
-        self.status_var = tk.StringVar(value="Ready to start monitoring... (Default: .lpz files)")
+        self.status_var = tk.StringVar(value="Ready to start monitoring... Configure settings above and click 'Start Monitoring'")
         ttk.Label(main_frame, textvariable=self.status_var, 
                  font=('Arial', 9), foreground='gray').grid(row=7, column=0, columnspan=3, pady=10)
         
@@ -258,11 +265,45 @@ class GitAutoSyncApp:
             self.observer.start()
             
             self.monitoring = True
-            self.status_var.set(f"Monitoring {file_extension} files in: {watch_path}")
-            messagebox.showinfo("Success", f"Now monitoring {file_extension} files!\n\nPath: {watch_path}")
+            self.status_var.set(f"✅ Monitoring {file_extension} files in: {watch_path}")
+            
+            # Update button states
+            self.start_button.configure(state='disabled')
+            self.stop_button.configure(state='normal')
+            self.tray_button.configure(state='normal')
+            
+            messagebox.showinfo("Success", f"✅ Now monitoring {file_extension} files!\n\nPath: {watch_path}\n\nYou can now minimize to tray or continue working.")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start monitoring: {e}")
+    
+    def stop_monitoring(self):
+        """Stop file monitoring"""
+        try:
+            if self.observer and self.observer.is_alive():
+                print("Stopping file monitoring...")
+                self.observer.stop()
+                self.observer.join(timeout=5)  # Wait up to 5 seconds
+                self.observer = None
+                print("File monitoring stopped successfully")
+            
+            self.monitoring = False
+            file_ext = self.config.get('file_extension', '.lpz')
+            self.status_var.set(f"Monitoring stopped. Ready to monitor {file_ext} files again.")
+            
+            # Update button states
+            self.start_button.configure(state='normal')
+            self.stop_button.configure(state='disabled')
+            self.tray_button.configure(state='disabled')
+            
+            # Don't show popup if called during quit
+            if hasattr(self, 'root') and self.root.winfo_exists():
+                messagebox.showinfo("Stopped", "✅ File monitoring has been stopped successfully.")
+            
+        except Exception as e:
+            print(f"Error stopping monitoring: {e}")
+            if hasattr(self, 'root') and self.root.winfo_exists():
+                messagebox.showerror("Error", f"Failed to stop monitoring: {e}")
     
     def show_commit_dialog(self, file_path):
         """Show commit dialog when file changes"""
@@ -338,6 +379,16 @@ class GitAutoSyncApp:
         self.root.lift()
         self.root.attributes('-topmost', True)  # Bring to front
         self.root.after(100, lambda: self.root.attributes('-topmost', False))  # Remove topmost after brief moment
+        
+        # Update button states based on monitoring status
+        if self.monitoring:
+            self.start_button.configure(state='disabled')
+            self.stop_button.configure(state='normal')
+            self.tray_button.configure(state='normal')
+        else:
+            self.start_button.configure(state='normal')
+            self.stop_button.configure(state='disabled')
+            self.tray_button.configure(state='disabled')
         
     def force_push(self, icon=None, item=None):
         """Force push current changes"""
@@ -504,10 +555,10 @@ class GitAutoSyncApp:
             except:
                 pass
             self.active_dialog = None
-            
-        if self.observer:
-            self.observer.stop()
-            self.observer.join()
+        
+        # Stop monitoring properly
+        if self.monitoring:
+            self.stop_monitoring()
             
         if self.tray_icon:
             self.tray_icon.stop()
