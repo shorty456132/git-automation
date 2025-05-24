@@ -496,16 +496,16 @@ class CommitDialog:
         else:
             self.dialog = tk.Toplevel(parent)
         
-        self.dialog.title("File Changed - Commit Changes")
+        self.dialog.title("📌 File Changed - Commit Changes")  # 📌 indicates always on top
         self.dialog.geometry("500x220")  # Larger to accommodate multi-line text
         
         # Make dialog always on top and properly visible
-        self.dialog.attributes('-topmost', True)
+        self.dialog.attributes('-topmost', True)  # Keep always on top permanently
         self.dialog.lift()
         self.dialog.focus_force()
         
-        # Center the dialog on screen
-        self.center_on_screen()
+        # Position in bottom right corner
+        self.position_bottom_right()
         
         # Make it modal, but handle grab errors gracefully
         if parent:
@@ -523,20 +523,28 @@ class CommitDialog:
             self.dialog.deiconify()
             self.dialog.lift()
             self.dialog.focus_force()
-            self.dialog.attributes('-topmost', True)  
-            self.dialog.after(500, lambda: self.dialog.attributes('-topmost', False))
+            # Keep permanently on top - no timeout removal
             self.dialog.after(100, lambda: self.set_initial_focus())
         else:
             self.dialog.after(50, lambda: self.set_initial_focus())
             
-    def center_on_screen(self):
-        """Center the dialog on the screen"""
+    def position_bottom_right(self):
+        """Position the dialog in the bottom right corner of the screen"""
         self.dialog.update_idletasks()
         width = 500  
         height = 220
-        x = (self.dialog.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.dialog.winfo_screenheight() // 2) - (height // 2)
+        
+        # Get screen dimensions
+        screen_width = self.dialog.winfo_screenwidth()
+        screen_height = self.dialog.winfo_screenheight()
+        
+        # Position in bottom right with small margin from edges
+        margin = 20  # pixels from edge
+        x = screen_width - width - margin
+        y = screen_height - height - margin - 40  # Extra margin for taskbar
+        
         self.dialog.geometry(f"{width}x{height}+{x}+{y}")
+        print(f"Positioned dialog at bottom right: {x}, {y}")
 
     def setup_simple_dialog(self):
         """Setup ONLY commit message - NO remote/branch fields"""
@@ -589,7 +597,7 @@ class CommitDialog:
         self.dialog.bind('<Escape>', lambda e: self.cancel())
         self.dialog.protocol("WM_DELETE_WINDOW", self.cancel)
         
-        print(f"Multi-line dialog created with commit: '{default_commit[:30]}...'")
+        print(f"Multi-line dialog created (always on top, bottom-right) with commit: '{default_commit[:30]}...'")
     
     def set_initial_focus(self):
         """Set focus on commit text widget"""
