@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 Git Auto-Sync Monitor
-A background application that monitors .lpz files and automatically syncs changes to Git.
+A background application that monitors files and automatically syncs changes to Git.
 Features:
 - System tray integration
-- Automatic file monitoring
+- Automatic file monitoring (configurable file extensions)
 - Git operations (add, commit, push, pull, fetch)
 - Configurable paths and settings
 """
@@ -32,8 +32,8 @@ except ImportError as e:
     sys.exit(1)
 
 
-class LpzFileHandler(FileSystemEventHandler):
-    """Handles .lpz file change events"""
+class FileExtensionHandler(FileSystemEventHandler):
+    """Handles file change events for specified extension"""
     
     def __init__(self, app):
         self.app = app
@@ -42,8 +42,13 @@ class LpzFileHandler(FileSystemEventHandler):
     def on_modified(self, event):
         if event.is_directory:
             return
+        
+        # Get the configured file extension
+        file_extension = self.app.config.get('file_extension', '.lpz')
+        if not file_extension.startswith('.'):
+            file_extension = '.' + file_extension
             
-        if event.src_path.endswith('.lpz'):
+        if event.src_path.endswith(file_extension):
             # Debounce events (ignore if same file modified within 3 seconds)
             now = time.time()
             if event.src_path in self.last_event_time:
@@ -61,8 +66,8 @@ class LpzFileHandler(FileSystemEventHandler):
 class GitAutoSyncApp:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Git Auto-Sync Monitor")
-        self.root.geometry("500x300")
+        self.root.title("Git Auto-Sync Monitor - Universal File Watcher")
+        self.root.geometry("650x380")  # Wider and taller for better layout with examples
         
         # Configuration
         self.config_file = "git_sync_config.json"
@@ -85,6 +90,7 @@ class GitAutoSyncApp:
             self.repo_path_var.set(self.config['repo_path'])
             self.remote_var.set(self.config.get('default_remote', 'origin'))
             self.branch_var.set(self.config.get('default_branch', 'main'))
+            self.extension_var.set(self.config.get('file_extension', '.lpz'))
         
         # Handle window close event
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -134,21 +140,40 @@ class GitAutoSyncApp:
         ttk.Button(main_frame, text="Browse", 
                   command=self.browse_repo_path).grid(row=2, column=2, pady=5)
         
+        # File Extension to Monitor
+        ext_label_frame = ttk.Frame(main_frame)
+        ext_label_frame.grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(ext_label_frame, text="📄 File Extension:").pack()
+        
+        self.extension_var = tk.StringVar(value=".lpz")
+        extension_entry = ttk.Entry(main_frame, textvariable=self.extension_var, width=20, font=('Arial', 10))
+        extension_entry.grid(row=3, column=1, sticky=tk.W, padx=(10, 5), pady=5)
+        
+        # Help text for file extensions
+        help_frame = ttk.Frame(main_frame)
+        help_frame.grid(row=3, column=2, sticky=tk.W, pady=5, padx=5)
+        ttk.Label(help_frame, text="Examples:", 
+                 font=('Arial', 8), foreground='gray').pack(anchor=tk.W)
+        ttk.Label(help_frame, text=".lpz .txt .py .js .md .docx", 
+                 font=('Arial', 8), foreground='blue').pack(anchor=tk.W)
+        ttk.Label(help_frame, text=".xml .json .csv .log", 
+                 font=('Arial', 8), foreground='blue').pack(anchor=tk.W)
+        
         # Default Remote
-        ttk.Label(main_frame, text="🔗 Default Remote:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="🔗 Default Remote:").grid(row=4, column=0, sticky=tk.W, pady=5)
         self.remote_var = tk.StringVar(value="origin")
-        ttk.Entry(main_frame, textvariable=self.remote_var, width=20).grid(row=3, column=1, 
+        ttk.Entry(main_frame, textvariable=self.remote_var, width=20).grid(row=4, column=1, 
                                                                           sticky=tk.W, padx=(10, 5), pady=5)
         
         # Default Branch
-        ttk.Label(main_frame, text="🌿 Default Branch:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="🌿 Default Branch:").grid(row=5, column=0, sticky=tk.W, pady=5)
         self.branch_var = tk.StringVar(value="main")
-        ttk.Entry(main_frame, textvariable=self.branch_var, width=20).grid(row=4, column=1, 
+        ttk.Entry(main_frame, textvariable=self.branch_var, width=20).grid(row=5, column=1, 
                                                                           sticky=tk.W, padx=(10, 5), pady=5)
         
         # Buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=5, column=0, columnspan=3, pady=20)
+        button_frame.grid(row=6, column=0, columnspan=3, pady=20)
         
         ttk.Button(button_frame, text="Start Monitoring", 
                   command=self.start_monitoring).pack(side=tk.LEFT, padx=5)
@@ -156,9 +181,9 @@ class GitAutoSyncApp:
                   command=self.minimize_to_tray).pack(side=tk.LEFT, padx=5)
         
         # Status
-        self.status_var = tk.StringVar(value="Ready to start monitoring...")
+        self.status_var = tk.StringVar(value="Ready to start monitoring... (Default: .lpz files)")
         ttk.Label(main_frame, textvariable=self.status_var, 
-                 font=('Arial', 9), foreground='gray').grid(row=6, column=0, columnspan=3, pady=10)
+                 font=('Arial', 9), foreground='gray').grid(row=7, column=0, columnspan=3, pady=10)
         
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
@@ -181,9 +206,23 @@ class GitAutoSyncApp:
         """Start file monitoring"""
         watch_path = self.watch_path_var.get().strip()
         repo_path = self.repo_path_var.get().strip()
+        file_extension = self.extension_var.get().strip()
         
         if not watch_path or not repo_path:
             messagebox.showerror("Error", "Please specify both watch path and repository path")
+            return
+        
+        if not file_extension:
+            messagebox.showerror("Error", "Please specify a file extension to monitor")
+            return
+            
+        # Validate and normalize file extension
+        if not file_extension.startswith('.'):
+            file_extension = '.' + file_extension
+        
+        # Basic validation for file extension
+        if len(file_extension) < 2 or not file_extension.replace('.', '').replace('_', '').replace('-', '').isalnum():
+            messagebox.showerror("Error", "Please enter a valid file extension (e.g., .lpz, .txt, .py)")
             return
             
         if not os.path.exists(watch_path):
@@ -202,6 +241,7 @@ class GitAutoSyncApp:
         self.config.update({
             'watch_path': watch_path,
             'repo_path': repo_path,
+            'file_extension': file_extension,
             'default_remote': self.remote_var.get(),
             'default_branch': self.branch_var.get()
         })
@@ -213,13 +253,13 @@ class GitAutoSyncApp:
                 self.observer.stop()
                 
             self.observer = Observer()
-            event_handler = LpzFileHandler(self)
+            event_handler = FileExtensionHandler(self)
             self.observer.schedule(event_handler, watch_path, recursive=True)
             self.observer.start()
             
             self.monitoring = True
-            self.status_var.set(f"Monitoring: {watch_path}")
-            messagebox.showinfo("Success", "Monitoring started successfully!")
+            self.status_var.set(f"Monitoring {file_extension} files in: {watch_path}")
+            messagebox.showinfo("Success", f"Now monitoring {file_extension} files!\n\nPath: {watch_path}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start monitoring: {e}")

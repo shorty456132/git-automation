@@ -2,5 +2,6 @@
   "watch_path": "C:/Users/alaia/OneDrive/Desktop/crestronTest",
   "repo_path": "C:/Users/alaia/OneDrive/Desktop/crestronTest",
   "default_remote": "origin",
-  "default_branch": "main"
+  "default_branch": "main",
+  "file_extension": ".lpz"
 }

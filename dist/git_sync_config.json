@@ -1,6 +1,7 @@
 {
-  "watch_path": "C:/Users/alaia/OneDrive/Desktop/crestronTest",
-  "repo_path": "C:/Users/alaia/OneDrive/Desktop/crestronTest",
+  "watch_path": "C:/Users/alaia/OneDrive/Desktop/GovernorsIsland",
+  "repo_path": "C:/Users/alaia/OneDrive/Desktop/GovernorsIsland",
   "default_remote": "origin",
-  "default_branch": "main"
+  "default_branch": "main",
+  "file_extension": ".qsys"
 }
