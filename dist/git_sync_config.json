@@ -1,7 +1,7 @@
 {
-  "watch_path": "C:/Users/alaia/OneDrive/Desktop/GovernorsIsland",
-  "repo_path": "C:/Users/alaia/OneDrive/Desktop/GovernorsIsland",
+  "watch_path": "C:/Users/alaia/Documents/Python/GitAutomation",
+  "repo_path": "",
   "default_remote": "origin",
   "default_branch": "main",
-  "file_extension": ".qsys"
+  "file_extension": ".py"
 }
