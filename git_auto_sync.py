@@ -544,7 +544,7 @@ class GitAutoSyncApp:
                 print("No remote specified. Only committing locally") 
             return True
             
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError as e: 
             print(f"Git command failed: {e}")
             return False
         except Exception as e:
