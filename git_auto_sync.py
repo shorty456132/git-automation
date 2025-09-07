@@ -215,7 +215,7 @@ class GitAutoSyncApp:
         repo_path = self.repo_path_var.get().strip()
         file_extension = self.extension_var.get().strip()
         
-        if not watch_path or not repo_path:
+        if not watch_path: #or not repo_path
             messagebox.showerror("Error", "Please specify both watch path and repository path")
             return
         
@@ -236,14 +236,16 @@ class GitAutoSyncApp:
             messagebox.showerror("Error", f"Watch path does not exist: {watch_path}")
             return
             
-        if not os.path.exists(repo_path):
-            messagebox.showerror("Error", f"Repository path does not exist: {repo_path}")
-            return
+        # if not os.path.exists(repo_path):
+        #     messagebox.showerror("Error", f"Repository path does not exist: {repo_path}")
+        #     return
             
-        if not os.path.exists(os.path.join(repo_path, '.git')):
-            messagebox.showerror("Error", f"Not a Git repository: {repo_path}")
-            return
+        # if not os.path.exists(os.path.join(repo_path, '.git')):
+        #     messagebox.showerror("Error", f"Not a Git repository: {repo_path}")
+        #     return
         
+
+
         # Save configuration
         self.config.update({
             'watch_path': watch_path,
@@ -522,16 +524,25 @@ class GitAutoSyncApp:
     def run_git_commands(self, repo_path, commit_message, remote, branch):
         """Run git add, commit, and push commands"""
         try:
-            # Git add
-            subprocess.run(['git', 'add', '.'], cwd=repo_path, check=True)
+            if len(repo_path) > 0:
+                # Git add
+                subprocess.run(['git', 'add', '.'], cwd=repo_path, check=True)
+
+                # Git commit
+                subprocess.run(['git', 'commit', '-m', commit_message], cwd=repo_path, check=True)
+
+                # Git push
             
-            # Git commit
-            subprocess.run(['git', 'commit', '-m', commit_message], cwd=repo_path, check=True)
+                subprocess.run(['git', 'push', remote, branch], cwd=repo_path, check=True)
             
-            # Git push
-            subprocess.run(['git', 'push', remote, branch], cwd=repo_path, check=True)
-            
-            print(f"Successfully pushed changes: {commit_message}")
+                print(f"Successfully pushed changes: {commit_message}")
+            else:
+                # Git add
+                subprocess.run(['git', 'add', '.'])
+                 
+                # Git commit 
+                subprocess.run(['git', 'commit', '-m', commit_message])
+                print("No remote specified. Only committing locally") 
             return True
             
         except subprocess.CalledProcessError as e:
