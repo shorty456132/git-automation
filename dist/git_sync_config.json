@@ -1,7 +1,7 @@
 {
   "watch_path": "C:/Users/alaia/Documents/Python/GitAutomation",
-  "repo_path": "",
-  "default_remote": "origin",
+  "repo_path": "C:/Users/alaia/Documents/Python/GitAutomation",
+  "default_remote": "",
   "default_branch": "main",
   "file_extension": ".py"
 }

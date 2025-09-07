@@ -524,7 +524,7 @@ class GitAutoSyncApp:
     def run_git_commands(self, repo_path, commit_message, remote, branch):
         """Run git add, commit, and push commands"""
         try:
-            if len(repo_path) > 0:
+            if len(remote) > 0:
                 # Git add
                 subprocess.run(['git', 'add', '.'], cwd=repo_path, check=True)
 
@@ -532,16 +532,15 @@ class GitAutoSyncApp:
                 subprocess.run(['git', 'commit', '-m', commit_message], cwd=repo_path, check=True)
 
                 # Git push
-            
                 subprocess.run(['git', 'push', remote, branch], cwd=repo_path, check=True)
             
                 print(f"Successfully pushed changes: {commit_message}")
-            else:
+            else: 
                 # Git add
-                subprocess.run(['git', 'add', '.'])
-                 
-                # Git commit 
-                subprocess.run(['git', 'commit', '-m', commit_message])
+                subprocess.run(['git', 'add', '.'], cwd=repo_path, check=True)
+
+                # Git commit
+                subprocess.run(['git', 'commit', '-m', commit_message], cwd=repo_path, check=True)
                 print("No remote specified. Only committing locally") 
             return True
             
